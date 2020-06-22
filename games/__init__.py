@@ -6,19 +6,16 @@ import asyncio
 
 gameObj = None
 
-class Game(object):
-	running = False
-	game_users = {}
 
 #####################
 # COMMON GAME METHODS
 #####################
 
 
-async def add_user(self, user, *args):
+async def add_user(self, ctx, user, *args):
 	if gameObj is not None:
 		if gameObj.running == True:
-			gameObj.game_users[user] = [args[0], args[1]]
+			await gameObj.add_user(ctx, user, *args)
 
 
 async def read_users(self, ctx):
@@ -30,13 +27,25 @@ async def read_users(self, ctx):
 # GUESSING GAME
 ########################
 
-class Guess(Game):
+class Guess(object):
 	def __init__(self):
 		self.answer = randint(1,10)
 		self.collection_time = time() + 60
-		self.bet_multiplier = 2
+		self.bet_multiplier = 1.5
+		self.maxGuess = 10
+		self.game_users = {}
+		self.running = False
 
+	async def add_user(self, ctx, user, *args):
+		bet = args[0]
+		uguess = args[1]
 
+		if bet.isdigit() and uguess.isdigit():
+			self.game_users[user] = [bet, uguess]
+			await ctx.send(f"@{user} - Bet submitted")
+		else:
+			await ctx.send("!bet error")
+	
 	async def get_results(self, ctx, *args):
 		await asyncio.sleep(1)
 		winners = {}
@@ -51,9 +60,10 @@ class Guess(Game):
 		return winners
 
 
-
-
 async def guess_run(self, ctx, *args):
+	#
+	#Start game from here. Create a new game object using Guess class. Starts running state.
+	#
 	global gameObj
 
 	if gameObj is None:
@@ -68,12 +78,11 @@ async def guess_run(self, ctx, *args):
 
 
 async def guess_start(self, ctx):
-	global gameObj
-
 	while True:
 		await asyncio.sleep(1)
 		if gameObj.collection_time <= time():
 			await guess_end(self, ctx)
+
 			break
 
 
@@ -91,10 +100,112 @@ async def guess_end(self, ctx):
 		await ctx.send("EVENT: No winners!")
 
 	await ctx.send("EVENT: Ending game")
-	gameObj = None
 
+	gameObj = None
 
 
 ######################
 #HEIST GAME
 ######################
+
+class Heist(object):
+	def __init__(self):
+		self.collection_time = 0
+		self.collection_state = False
+		self.start_time = 0
+		self.bet_multiplier = 1.5
+		self.succeeded = []
+		self.game_users = {}
+		self.running = False
+		self.messages = {
+			"success" : [
+				"@{} fought off the guards, and got their haul!",
+				"@{} sneaked out of the back entrance with their share!",
+				"@{} got in and out seemlessly with their money!",
+			],
+			"fail" : [
+				"@{} got caught by the guards!",
+				"@{} was injured by a gunshot!",
+				"@{} got lost!",
+			]
+		}
+
+	
+
+	async def add_user(self, ctx, user, *args):
+		if self.collection_state:
+			bet = int(args[0])
+			if user in self.game_users:
+				await ctx.send(f"@{user} You're already good to go.")
+
+			else:
+				self.game_users[user] = bet
+				await ctx.send(f"@{user} You're all suited and ready to go! Stand by for showtime...")
+		else:
+			await ctx.send("Heist is in progress. Not taking bets.")
+
+	
+	async def collect(self, ctx):
+		await ctx.send("EVENT: Hiest is on! Enter your bets: !bet <bet amount>")
+		self.running = True
+		self.collection_state = True
+		self.collection_time = time() + 10
+		while True:
+			await asyncio.sleep(1)
+			if self.collection_time <= time():
+				await self.start(ctx)
+				break
+
+	async def start(self, ctx):
+		await ctx.send("The heist has started! Standby for results...")
+		self.collection_state = False
+		self.start_time = time() + randint(10, 20)
+		while True:
+			await asyncio.sleep(1)
+			if self.start_time <= time():
+				await self.end(ctx)
+				break
+
+	async def end(self, ctx):
+		
+		for user in self.game_users:
+			bet = self.game_users[user]
+			if randint(0, 1):
+				self.succeeded.append((user, int(bet)*1.5))
+				await ctx.send(choice(self.messages["success"]).format(user))
+			else:
+				await ctx.send(choice(self.messages["fail"]).format(user))
+		
+		
+		if len(self.succeeded) > 0:
+			await ctx.send("The heist is over! The winners: " + ", ".join([f"{user} ({coins:,} coins)" for user, coins in self.succeeded]))
+		else:
+			await ctx.send("The heist was a failure! No one got out!")
+
+		self.running = False
+
+
+
+
+async def heist_run(self, ctx, *args):
+	global gameObj
+
+	if gameObj is None:
+
+		gameObj = Heist()
+		gameObj.running = True
+		await gameObj.collect(ctx)
+
+		while True:
+			await asyncio.sleep(1)
+			if gameObj.running == False:
+				await heist_end(self, ctx)
+				break
+	else:	
+
+		await ctx.send("A game is currently in session")
+
+
+async def heist_end(self, ctx):
+	global gameObj
+	gameObj = None

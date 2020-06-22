@@ -3,14 +3,18 @@ from auth import client_id, irc_token, bot_nick, owner
 from random import choice, randint
 import games
 
+from lib import db
+
 gamescmds = {
     "guess" : games.guess_run,
+    "heist" : games.heist_run,
 }
 
 class Bot(commands.Bot):
 
     def __init__(self):
         super().__init__(irc_token=irc_token, client_id=client_id, nick=bot_nick, prefix='!', initial_channels=[owner])
+        db.build()
 
 
     async def event_ready(self):
@@ -20,6 +24,7 @@ class Bot(commands.Bot):
     async def event_message(self, message):
         print(message.content)
         await self.handle_commands(message)
+
 
 
     # Commands use a decorator...
@@ -60,7 +65,7 @@ class Bot(commands.Bot):
     @commands.command(name='bet')
     async def add_user(self, ctx, *args):
         user = ctx.author.name
-        await games.add_user(self, user, *args)
+        await games.add_user(self, ctx, user, *args)
 
     @commands.command(name='getgameusers')
     async def read_users(self, ctx, *args):
