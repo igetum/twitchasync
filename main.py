@@ -36,7 +36,7 @@ class Bot(commands.Bot):
         if side is None:
             await ctx.send("You need to guess which side the coin will land!")
         elif (side := side.lower()) not in (opt := ("h", "t", "heads", "tails")):
-            await ctx.send("Enter one of the following as the side: " + ", ".joi(opt))
+            await ctx.send("Enter one of the following as the side: " + ", ".join(opt))
 
         else:
             result = choice(("heads", "tails"))
