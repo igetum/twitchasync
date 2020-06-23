@@ -79,6 +79,14 @@ class Bot(commands.Bot):
     async def read_users(self, ctx, *args):
         await games.read_users(self, ctx, *args)
 
+    @commands.command(name='coins')
+    async def get_coin(self, ctx):
+        print(ctx.author.name)
+        coins = db.field("SELECT Coins FROM users WHERE UserID = ?", ctx.author.id)
+        db.commit()
+        print(coins)
+        await ctx.send(f"/me {coins}")
+
 
 if __name__ == "__main__":
     db.build()

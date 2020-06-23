@@ -130,7 +130,9 @@ class Heist(object):
 		self.start_time = 0
 		self.bet_multiplier = 1.5
 		self.succeeded = []
+
 		self.game_users = {}
+
 		self.running = False
 		self.messages = {
 			"success" : [
@@ -150,8 +152,9 @@ class Heist(object):
 	async def add_user(self, ctx, user, *args):
 		if self.collection_state:
 			bet = int(args[0])
+			print(self.game_users)
 			if user in self.game_users:
-				await ctx.send(f"@{user} You're already good to go.")
+				await ctx.send(f"You're already good to go.")
 
 			else:
 				self.game_users[user] = bet
