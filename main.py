@@ -22,18 +22,18 @@ class Bot(commands.Bot):
 
     async def event_ready(self):
         print(f'Ready | {self.nick}')
+        db.build()
 
 
     async def event_message(self, message):
-        #await react.process(ctx, message)
+        print(message.content)
         await self.handle_commands(message)
-
         await react.process(message)
         
 
     @commands.command(name='test')
     async def my_command(self, ctx):
-        await ctx.send(f'Hello {ctx.author.name}!')
+        await ctx.channel.send(f'Hello {ctx.author.name}!')
 
 
     ######################
@@ -89,6 +89,6 @@ class Bot(commands.Bot):
 
 
 if __name__ == "__main__":
-    db.build()
+
     bot = Bot()
     bot.run()

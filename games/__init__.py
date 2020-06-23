@@ -17,6 +17,8 @@ async def add_user(self, ctx, user, *args):
 	if gameObj is not None:
 		if gameObj.running == True:
 			await gameObj.add_user(ctx, user, *args)
+	else:
+		await ctx.send("There is not game in session")
 
 
 async def read_users(self, ctx):
@@ -67,7 +69,7 @@ class Guess(object):
 			uguess = int(self.game_users[user][1])
 
 			if uguess == self.answer:
-				winners[user] = bet * self.bet_multiplier
+				winners[user] = bet + (bet * self.bet_multiplier)
 
 		return winners
 
@@ -152,15 +154,19 @@ class Heist(object):
 	async def add_user(self, ctx, user, *args):
 		if self.collection_state:
 			bet = int(args[0])
-			print(self.game_users)
-			if user in self.game_users:
+		
+			if user['name'] in self.game_users:
 				await ctx.send(f"You're already good to go.")
 
 			else:
-				self.game_users[user] = bet
-				db.execute("UPDATE users SET Coins = Coins - ? WHERE UserID = ?", bet, user["id"])
-				db.commit()
-				await ctx.send(f"@{user} You're all suited and ready to go! Stand by for showtime...")
+				if bet > int((coins := db.field("SELECT Coins FROM users WHERE UserID = ?", user["id"]))):
+					await ctx.send(f"You don't have that much to bet - you only have {coins:,} coins.")
+				else:
+					self.game_users[user['name']] = {"id": user['id'], "bet": bet}
+					print(self.game_users)
+					db.execute("UPDATE users SET Coins = Coins - ? WHERE UserID = ?", bet, user["id"])
+					db.commit()
+					await ctx.send(f"@{user['name']} You're all suited and ready to go! Stand by for showtime...")
 		else:
 			await ctx.send("Heist is in progress. Not taking bets.")
 
@@ -191,24 +197,24 @@ class Heist(object):
 	async def end(self, ctx):
 		
 		for user in self.game_users:
+
 			await asyncio.sleep(1)
-			bet = self.game_users[user]
+			bet = self.game_users[user]['bet']
 			if randint(0, 1):
 				self.succeeded.append((user, int(bet)*1.5))
-				db.execute("UPDATE users SET Coins = Coins + ? WHERE UserID = ?", int(bet)*1.5 , user["id"])
+				db.execute("UPDATE users SET Coins = Coins + ? WHERE UserID = ?", int(bet)*1.5 , self.game_users[user]['id'])
 				db.commit()
 				await ctx.send(choice(self.messages["success"]).format(user))
 			else:
 				await ctx.send(choice(self.messages["fail"]).format(user))
 		
 	
-		await asyncio.sleep(1)
+		await asyncio.sleep(2)
 		if len(self.succeeded) > 0:
 			await ctx.send("The heist is over! The winners: " + ", ".join([f"{user} ({coins:,} coins)" for user, coins in self.succeeded]))
 		else:
 			await ctx.send("The heist was a failure! No one got out!")
 
-		await asyncio.sleep(1)
 		self.running = False
 
 

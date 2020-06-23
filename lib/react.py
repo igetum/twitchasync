@@ -12,22 +12,22 @@ messages = defaultdict(int)
 
 async def process(message):
 	ctx = message.channel
-	
 	user = {"name": message.author.name, "id": message.author.id}
-	await add_user(user)
+	
 	await update_records(ctx, user)
 	await check_activity(ctx, user)
+	await add_user(user)
+		
+
 
 async def update_records(ctx, user):
 	db.execute("UPDATE users SET UserName = ?, MessagesSent = MessagesSent + 1 WHERE UserID = ?",
 		user["name"].lower(), user["id"])
+	db.commit()
 
 async def add_user(user):
 	db.execute("INSERT OR IGNORE INTO users (UserID, UserName, Coins) VALUES (?, ?, ?)", user["id"], user["name"].lower(), 100)
-
-async def welcome(ctx, user):
-	await ctx.send(f"Welcome to the stream {user['name']}!")
-	welcomed.append(user["id"])
+	db.commit()
 
 async def say_goodbye(ctx, user):
 	await ctx.send(f"See ya later {user['name']}!")
