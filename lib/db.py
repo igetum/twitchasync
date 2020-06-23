@@ -1,5 +1,6 @@
 from sqlite3 import connect
 
+
 cxn = connect("./files/database.db", check_same_thread=False)
 cur = cxn.cursor()
 
@@ -11,10 +12,8 @@ def with_commit(func):
 	return inner
 
 
-@with_commit
 def build():
 	scriptexec("./files/script.sql")
-
 
 def commit():
 	cxn.commit()
@@ -35,6 +34,7 @@ def record(command, *values):
 	return cur.fetchone()
 
 
+
 def records(command, *values):
 	cur.execute(command, tuple(values))
 	return cur.fetchall()
@@ -47,7 +47,6 @@ def column(command, *values):
 
 def execute(command, *values):
 	cur.execute(command, tuple(values))
-
 
 def mutliexec(command, valueset):
 	cur.executemany(command, valueset)

@@ -3,6 +3,7 @@ from random import choice, randint
 from time import time
 import asyncio
 
+from lib import db
 
 gameObj = None
 
@@ -20,6 +21,7 @@ async def add_user(self, ctx, user, *args):
 
 async def read_users(self, ctx):
 	print(gameObj.game_users)
+	await ctx.send(gameObj.game_users)
 
 
 
@@ -29,10 +31,10 @@ async def read_users(self, ctx):
 
 class Guess(object):
 	def __init__(self):
-		self.answer = randint(1,10)
-		self.collection_time = time() + 60
+		self.maxNum = 2
+		self.answer = randint(1, self.maxNum)
+		self.collection_time = time() + 20
 		self.bet_multiplier = 1.5
-		self.maxGuess = 10
 		self.game_users = {}
 		self.running = False
 
@@ -41,8 +43,18 @@ class Guess(object):
 		uguess = args[1]
 
 		if bet.isdigit() and uguess.isdigit():
-			self.game_users[user] = [bet, uguess]
-			await ctx.send(f"@{user} - Bet submitted")
+			
+			bet = int(bet)
+			if bet > int((coins := db.field("SELECT Coins FROM users WHERE UserID = ?", user["id"]))):
+				await ctx.send(f"You don't have that much to bet - you only have {coins:,} coins.")
+
+			else:
+				db.execute("UPDATE users SET Coins = Coins - ? WHERE UserID = ?", bet, user["id"])
+				db.commit()
+				self.game_users[user["name"]] = [bet, uguess]
+
+				await ctx.send(f"@{user['name']} - Bet submitted")
+
 		else:
 			await ctx.send("!bet error")
 	
@@ -94,7 +106,10 @@ async def guess_end(self, ctx):
 
 	if bool(winners):
 		for winner in winners:
+			await asyncio.sleep(1)
 			winner_message = winner_message + " | " + winner + "  $" + str(winners[winner])
+			db.execute("UPDATE users SET Coins = Coins + ? WHERE UserName = ?", winners[winner], winner)
+			db.commit()
 		await ctx.send(winner_message)
 	else:
 		await ctx.send("EVENT: No winners!")
@@ -140,6 +155,8 @@ class Heist(object):
 
 			else:
 				self.game_users[user] = bet
+				db.execute("UPDATE users SET Coins = Coins - ? WHERE UserID = ?", bet, user["id"])
+				db.commit()
 				await ctx.send(f"@{user} You're all suited and ready to go! Stand by for showtime...")
 		else:
 			await ctx.send("Heist is in progress. Not taking bets.")
@@ -149,7 +166,7 @@ class Heist(object):
 		await ctx.send("EVENT: Hiest is on! Enter your bets: !bet <bet amount>")
 		self.running = True
 		self.collection_state = True
-		self.collection_time = time() + 10
+		self.collection_time = time() + 30
 		while True:
 			await asyncio.sleep(1)
 			if self.collection_time <= time():
@@ -166,22 +183,29 @@ class Heist(object):
 				await self.end(ctx)
 				break
 
+
+
 	async def end(self, ctx):
 		
 		for user in self.game_users:
+			await asyncio.sleep(1)
 			bet = self.game_users[user]
 			if randint(0, 1):
 				self.succeeded.append((user, int(bet)*1.5))
+				db.execute("UPDATE users SET Coins = Coins + ? WHERE UserID = ?", int(bet)*1.5 , user["id"])
+				db.commit()
 				await ctx.send(choice(self.messages["success"]).format(user))
 			else:
 				await ctx.send(choice(self.messages["fail"]).format(user))
 		
-		
+	
+		await asyncio.sleep(1)
 		if len(self.succeeded) > 0:
 			await ctx.send("The heist is over! The winners: " + ", ".join([f"{user} ({coins:,} coins)" for user, coins in self.succeeded]))
 		else:
 			await ctx.send("The heist was a failure! No one got out!")
 
+		await asyncio.sleep(1)
 		self.running = False
 
 

@@ -3,31 +3,34 @@ from auth import client_id, irc_token, bot_nick, owner
 from random import choice, randint
 import games
 
-from lib import db
+import asyncio
+from lib import db, react
 
 gamescmds = {
     "guess" : games.guess_run,
     "heist" : games.heist_run,
 }
 
+welcomed = []
+
+
 class Bot(commands.Bot):
 
     def __init__(self):
         super().__init__(irc_token=irc_token, client_id=client_id, nick=bot_nick, prefix='!', initial_channels=[owner])
-        db.build()
-
+        
 
     async def event_ready(self):
-         print(f'Ready | {self.nick}')
+        print(f'Ready | {self.nick}')
 
 
     async def event_message(self, message):
-        print(message.content)
+        #await react.process(ctx, message)
         await self.handle_commands(message)
 
+        await react.process(message)
+        
 
-
-    # Commands use a decorator...
     @commands.command(name='test')
     async def my_command(self, ctx):
         await ctx.send(f'Hello {ctx.author.name}!')
@@ -47,7 +50,12 @@ class Bot(commands.Bot):
             result = choice(("heads", "tails"))
 
             if side[0] == result[0]:
+                await asyncio.sleep(1)
+                db.execute("UPDATE users SET Coins = Coins + ? WHERE UserID = ?", 50, ctx.author.id)
+                db.commit()
                 await ctx.send(f"It landed on {result}! You won 50 coins!")
+                
+                
 
             else:
                 await ctx.send(f"Too bad - it landed on {result}. You didn't win anything!")
@@ -64,14 +72,15 @@ class Bot(commands.Bot):
 
     @commands.command(name='bet')
     async def add_user(self, ctx, *args):
-        user = ctx.author.name
+        user = {"name":ctx.author.name, "id":ctx.author.id}
         await games.add_user(self, ctx, user, *args)
 
     @commands.command(name='getgameusers')
     async def read_users(self, ctx, *args):
         await games.read_users(self, ctx, *args)
- 
-   
+
+
 if __name__ == "__main__":
+    db.build()
     bot = Bot()
     bot.run()
